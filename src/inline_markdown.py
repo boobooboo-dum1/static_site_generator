@@ -50,11 +50,85 @@ def split_nodes_delimiter(
     return nodes
 
 
-def extract_markdown_images(text: str) -> list[tuple[str]]:
-    pattern = r"!\[(.*?)\]\((.*?)\)"
+def extract_markdown_images(text: str) -> list[tuple[str, str]]:
+    pattern = r"!\[([^\[\]]*)\]\(([^\(\)]*)\)"
     return re.findall(pattern, text)
 
 
-def extract_markdown_links(text: str) -> list[tuple[str]]:
-    pattern = r"\[(.*?)\]\((.*?)\)"
+def extract_markdown_links(text: str) -> list[tuple[str, str]]:
+    pattern = r"(?<!!)\[([^\[\]]*)\]\(([^\(\)]*)\)"
     return re.findall(pattern, text)
+
+
+def split_nodes_image(old_nodes: list[TextNode]) -> list[TextNode]:
+    nodes = []
+
+    for old_node in old_nodes:
+        if old_node.text_type != TextType.TEXT.value:
+            nodes.append(old_node)
+            continue
+
+        images = extract_markdown_images(old_node.text)
+        if len(images) == 0:
+            nodes.append(TextNode(text=old_node.text, text_type=TextType.TEXT))
+            continue
+
+        alt, url = images[0]
+        delimiter = f"![{alt}]({url})"
+        splitted = old_node.text.split(delimiter, maxsplit=1)
+        if len(splitted) == 1:
+            raise ValueError("Fail to split node image")
+        first, last = splitted
+
+        # Image is not in first position in string
+        if first != "":
+            nodes.append(TextNode(text=first, text_type=TextType.TEXT))
+
+        # Append image node
+        nodes.append(TextNode(text=alt, url=url, text_type=TextType.IMAGE))
+
+        # Nothing more to process
+        if last == "":
+            continue
+
+        remaining_node = TextNode(text=last, text_type=TextType.TEXT)
+        nodes.extend(split_nodes_image([remaining_node]))
+
+    return nodes
+
+
+def split_nodes_link(old_nodes: list[TextNode]) -> list[TextNode]:
+    nodes = []
+
+    for old_node in old_nodes:
+        if old_node.text_type != TextType.TEXT.value:
+            nodes.append(old_node)
+            continue
+
+        links = extract_markdown_links(old_node.text)
+        if len(links) == 0:
+            nodes.append(TextNode(text=old_node.text, text_type=TextType.TEXT))
+            continue
+
+        text, url = links[0]
+        delimiter = f"[{text}]({url})"
+        splitted = old_node.text.split(delimiter, maxsplit=1)
+        if len(splitted) == 1:
+            raise ValueError("Fail to split node link")
+        first, last = splitted
+
+        # Link is not in first position in string
+        if first != "":
+            nodes.append(TextNode(text=first, text_type=TextType.TEXT))
+
+        # Append link node
+        nodes.append(TextNode(text=text, url=url, text_type=TextType.LINK))
+
+        # Nothing more to process
+        if last == "":
+            continue
+
+        remaining_node = TextNode(text=last, text_type=TextType.TEXT)
+        nodes.extend(split_nodes_link([remaining_node]))
+
+    return nodes
