@@ -51,6 +51,13 @@ class ParentNode(HTMLNode):
     ):
         super().__init__(tag=tag, children=children, props=props)
 
+    def __eq__(self, other) -> bool:
+        return (
+            self.children == other.children
+            and self.tag == other.tag
+            and self.props == other.props
+        )
+
     def to_html(self):
         if not self.tag:
             raise ValueError("Missing tag")
