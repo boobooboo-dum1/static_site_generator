@@ -30,3 +30,14 @@ def generate_page(from_path: Path, template_path: Path, dest_path: Path) -> None
 
     with dest_path.open("w", encoding="utf-8") as f:
         f.write(templated)
+
+
+def generate_pages_recursive(
+    dir_path_content: Path, template_path: Path, dest_dir_path: Path
+) -> None:
+    md_files = dir_path_content.glob("**/*.md")
+    for md_file in md_files:
+        dest_path = dest_dir_path / md_file.relative_to(dir_path_content).with_suffix(
+            ".html"
+        )
+        generate_page(md_file, template_path, dest_path)
